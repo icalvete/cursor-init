@@ -1,145 +1,139 @@
 # cursor-init
 
-Herramientas para configurar y usar Cursor IDE de forma productiva.
+<p align="center">
+  <img src="assets/cursor-logo.png" alt="Cursor IDE" width="400">
+</p>
 
-Incluye dos comandos:
-- **`cursor-init`**: Inicializa proyectos con reglas, comandos y MCP
-- **`cursor-config`**: Configura Cursor globalmente (setup, backup, restore)
+Herramientas para configurar y usar [Cursor IDE](https://cursor.com) de forma productiva y segura.
+
+## ¿Por qué?
+
+Cursor es un IDE potente basado en VS Code con capacidades de IA integradas. Sin embargo, la configuración por defecto no siempre es la más segura o productiva:
+
+- **Data Sharing activado por defecto**: Tu código puede usarse para entrenar modelos
+- **Auto-Run habilitado**: El agente puede ejecutar comandos sin confirmación
+- **Indexado automático**: Puede indexar carpetas con datos sensibles sin que lo sepas
+- **Sin estructura de proyecto**: Cada proyecto empieza de cero, sin reglas ni comandos predefinidos
+
+Este proyecto resuelve esos problemas con dos herramientas:
+
+| Herramienta | Qué hace |
+|-------------|----------|
+| `cursor-init` | Inicializa proyectos con reglas de estilo, comandos y configuración MCP |
+| `cursor-config` | Configura Cursor globalmente con opciones seguras y permite backup/restore |
+
+## Ventajas
+
+- **Configuración segura por defecto**: Telemetría desactivada, Auto-Run con confirmación, protecciones activadas
+- **Consistencia entre proyectos**: Mismas reglas de estilo y documentación en todos tus proyectos
+- **Portabilidad**: Backup y restore de tu configuración para usarla en cualquier máquina
+- **Multi-lenguaje**: Reglas para Ruby, Python y JavaScript/TypeScript incluidas
+- **Extensible**: Fácil de añadir nuevos lenguajes, frameworks o MCPs
 
 ## Instalación
-
 ```bash
-git clone https://github.com/tu-usuario/cursor-init.git
+git clone https://github.com/icalvete/cursor-init.git
 cd cursor-init
 make install
 ```
 
 Por defecto instala en `~/.local/bin/`. Para instalar en `/usr/local/bin/`:
-
 ```bash
 sudo make install PREFIX=/usr/local
 ```
 
-## Uso
-
+## Uso rápido
 ```bash
-# Crear proyecto nuevo con Ruby + Python + JavaScript
+# Configurar Cursor con opciones seguras (solo una vez)
+cursor-config setup
+
+# Crear un proyecto nuevo
 cursor-init ~/proyectos/mi-app
 
-# En directorio actual
-cursor-init .
-
 # Con Rails
-cursor-init ~/proyectos/mi-rails-app --rails
+cursor-init ~/proyectos/mi-app --rails
 
 # Con MCP de GitHub
 cursor-init ~/proyectos/mi-app --mcp-github
 
-# Combinar opciones
-cursor-init ~/proyectos/mi-app --rails --mcp-github --mcp-postgres
+# Backup de tu configuración
+cursor-config backup ~/cursor-backup
+
+# Restaurar en otra máquina
+cursor-config restore ~/cursor-backup
 ```
 
-## Qué incluye
+## cursor-init
 
-### Lenguajes (siempre incluidos)
+Inicializa proyectos con estructura para Cursor.
+```bash
+cursor-init <directorio> [opciones]
+```
 
-| Lenguaje   | Reglas                                   |
-|------------|------------------------------------------|
-| Ruby       | Convenciones estilo + documentación YARD |
-| Python     | PEP8 + Google-style docstrings           |
-| JavaScript | ES6+ moderno + JSDoc                     |
+### Opciones
 
-### Opciones adicionales
+| Opción | Descripción |
+|--------|-------------|
+| `--rails` | Añade reglas para Ruby on Rails |
+| `--mcp-github` | Añade configuración MCP para GitHub |
+| `--mcp-postgres` | Añade configuración MCP para PostgreSQL |
 
-| Opción           | Descripción                              |
-|------------------|------------------------------------------|
-| `--rails`        | Convenciones Rails (MVC, seguridad, N+1) |
-| `--mcp-github`   | Integración GitHub (issues, PRs, repos)  |
-| `--mcp-postgres` | Integración PostgreSQL                   |
+### Qué incluye por defecto
 
-### Comandos incluidos
+**Lenguajes:**
+- Ruby (estilo + documentación YARD)
+- Python (PEP8 + Google-style docstrings)
+- JavaScript/TypeScript (ES6+ + JSDoc)
 
-| Comando   | Uso en Cursor  | Descripción                           |
-|-----------|----------------|---------------------------------------|
-| document  | `/document`    | Documenta código según el lenguaje    |
-| review    | `/review`      | Code review por severidad             |
+**Comandos:**
+- `/document` - Documenta código según el lenguaje
+- `/review` - Code review por severidad
 
-## Estructura generada
-
+### Estructura generada
 ```
 mi-proyecto/
 ├── .cursor/
-│   ├── rules/
-│   │   ├── ruby-style.mdc
-│   │   ├── ruby-docs.mdc
-│   │   ├── python-style.mdc
-│   │   ├── python-docs.mdc
-│   │   ├── javascript-style.mdc
-│   │   ├── javascript-docs.mdc
-│   │   └── rails-rails.mdc          # si --rails
-│   ├── commands/
-│   │   ├── document.md
-│   │   └── review.md
-│   └── mcp.json                      # si --mcp-*
-└── .cursorignore
+│   ├── rules/           # Reglas de estilo y documentación
+│   ├── commands/        # Comandos reutilizables
+│   └── mcp.json         # Configuración MCP (si se solicita)
+└── .cursorignore        # Archivos ignorados en indexado
 ```
-
-## Personalización
-
-Los templates están en `templates/`. Puedes:
-
-- Editar reglas existentes
-- Añadir nuevos lenguajes
-- Crear comandos personalizados
-- Añadir configuraciones MCP
-
-Ver [docs/](docs/) para más información.
-
-## Desinstalación
-
-```bash
-cd cursor-init
-make uninstall
-```
-
----
 
 ## cursor-config
 
-Gestiona la configuración global de Cursor IDE.
+Gestiona la configuración global de Cursor.
+```bash
+cursor-config <comando> [argumentos]
+```
 
 ### Comandos
 
-```bash
-cursor-config setup              # Aplica configuración recomendada
-cursor-config backup <dir>       # Guarda backup de tu configuración
-cursor-config restore <dir>      # Restaura desde backup
-cursor-config show               # Muestra configuración actual
-cursor-config extensions list    # Lista extensiones instaladas
-```
+| Comando | Descripción |
+|---------|-------------|
+| `setup` | Aplica configuración recomendada |
+| `show` | Muestra configuración actual |
+| `backup <dir>` | Guarda backup de configuración |
+| `restore <dir>` | Restaura desde backup |
+| `extensions list` | Lista extensiones instaladas |
 
-### Setup: Configuración recomendada
-
-`cursor-config setup` aplica:
+### Configuración recomendada (setup)
 
 | Configuración | Valor | Por qué |
 |---------------|-------|---------|
 | Data Sharing | OFF | Tu código no entrena modelos |
 | Index New Folders | OFF | Indexas manualmente cada proyecto |
-| Auto-Run Mode | Ask Every Time | Seguro, siempre pregunta antes de ejecutar |
-| Web Search Tool | ON | Agent puede buscar en internet |
+| Auto-Run Mode | Ask Every Time | Siempre pide confirmación |
+| Web Search Tool | ON | El agente puede buscar en internet |
 | File Deletion Protection | ON | Previene borrados accidentales |
 | Dotfile Protection | ON | Protege .gitignore, .env, etc. |
 | External-File Protection | ON | Protege archivos fuera del proyecto |
-| Default Mode | Agent | Agent mode por defecto |
 
 ### Backup y Restore
-
 ```bash
-# Guardar tu configuración
+# Guardar configuración
 cursor-config backup ~/cursor-backup
 
-# En otro PC, restaurar
+# Restaurar en otro PC
 cursor-config restore ~/cursor-backup
 ```
 
@@ -150,9 +144,47 @@ El backup incluye:
 - `mcp.json` (MCP global)
 - `extensions.txt` (lista de extensiones)
 
-**Nota:** El backup puede contener tokens en `mcp.json`. No lo compartas sin revisarlo.
+## Personalización
 
----
+Los templates están en `templates/`. Puedes:
+
+- Editar reglas existentes en `templates/<lenguaje>/rules/`
+- Añadir nuevos lenguajes creando carpetas con la misma estructura
+- Crear comandos en `templates/commands/`
+- Añadir configuraciones MCP en `templates/mcp/`
+
+## Requisitos
+
+- Bash
+- [jq](https://stedolan.github.io/jq/) (para cursor-config)
+- [Cursor IDE](https://cursor.com)
+```bash
+# Ubuntu/Debian
+sudo apt install jq
+```
+
+## Documentación
+
+### Guías incluidas
+
+En la carpeta [`docs/`](docs/) encontrarás tutoriales completos para aprender a usar Cursor IDE:
+
+| Documento | Descripción |
+|-----------|-------------|
+| [Tutorial Básico](docs/tutorial-basico.md) | Introducción completa: instalación, interfaces, símbolos @ y reglas |
+| [Tutorial Avanzado](docs/tutorial-avanzado.md) | Agent Mode, MCP, Commands, CLI y workflows (TDD, refactoring) |
+| [Cheatsheet](docs/cheatsheet.md) | Referencia rápida: configuración, atajos, MCP y checklist de seguridad |
+
+### Enlaces externos
+
+- [Cursor IDE](https://cursor.com)
+- [Cursor Documentation](https://docs.cursor.com)
+
+## Desinstalación
+```bash
+cd cursor-init
+make uninstall
+```
 
 ## Licencia
 
