@@ -1,0 +1,40 @@
+---
+description: Convenciones JavaScript/TypeScript
+globs: ["*.js", "*.jsx", "*.ts", "*.tsx", "*.mjs"]
+---
+
+# Estilo JavaScript/TypeScript
+
+## Nombrado
+
+- Variables y funciones: `camelCase`
+- Clases y componentes: `PascalCase`
+- Constantes: `SCREAMING_SNAKE_CASE`
+- Booleanos: `is`, `has`, `can` (`isActive`, `hasPermission`)
+- Handlers: `handle` (`handleClick`)
+
+## Idioms
+
+- `const` por defecto, `let` si reasignas, nunca `var`
+- Arrow functions para callbacks
+- Template literals: `` `Hello, ${name}` ``
+- Destructuring: `const { name } = user`
+- Optional chaining: `user?.address?.city`
+- Nullish coalescing: `value ?? default`
+
+## TypeScript
+
+- `interface` para objetos, `type` para uniones
+- Evita `any`, usa `unknown`
+- Generics para funciones reutilizables
+
+## Buenas prácticas
+
+- Evita mutación
+- Early returns
+- `===` en lugar de `==`
+
+## Formato
+
+- Indentación: 2 espacios
+- Máximo 100 caracteres

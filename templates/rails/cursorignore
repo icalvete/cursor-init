@@ -1,0 +1,9 @@
+log/
+tmp/
+storage/
+public/assets/
+public/packs/
+db/*.sqlite3
+config/master.key
+config/credentials.yml.enc
+node_modules/

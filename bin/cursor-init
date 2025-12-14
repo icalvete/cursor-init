@@ -1,0 +1,322 @@
+#!/bin/bash
+#
+# cursor-init
+# ===========
+# Inicializa un proyecto con configuración de Cursor IDE.
+#
+# Uso:
+#   cursor-init <directorio>              Crea proyecto con Ruby + Python + JS
+#   cursor-init <directorio> --rails      Añade reglas Rails
+#   cursor-init <directorio> --mcp-github Añade MCP de GitHub
+#   cursor-init --help                    Muestra ayuda
+#
+# Ejemplos:
+#   cursor-init ~/proyectos/mi-app
+#   cursor-init . --rails --mcp-github
+#
+
+set -e
+
+# ============================================================================
+# CONFIGURACIÓN
+# ============================================================================
+
+# Directorio donde está instalado cursor-init (resuelve symlinks)
+SCRIPT_PATH="$(readlink -f "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+TEMPLATES_DIR="$(dirname "$SCRIPT_DIR")/templates"
+
+# Colores
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# ============================================================================
+# FUNCIONES
+# ============================================================================
+
+ok() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+info() {
+    echo -e "${BLUE}→${NC} $1"
+}
+
+warn() {
+    echo -e "${YELLOW}!${NC} $1"
+}
+
+error() {
+    echo -e "${RED}✗${NC} $1" >&2
+    exit 1
+}
+
+show_help() {
+    cat << 'EOF'
+cursor-init - Inicializa proyectos con configuración de Cursor IDE
+
+USO
+    cursor-init <directorio> [opciones]
+
+ARGUMENTOS
+    <directorio>    Ruta del proyecto. Se crea si no existe.
+                    Usa "." para el directorio actual.
+
+OPCIONES
+    --rails         Añade reglas para Ruby on Rails
+    --mcp-github    Añade configuración MCP para GitHub
+    --mcp-postgres  Añade configuración MCP para PostgreSQL
+    --help, -h      Muestra esta ayuda
+
+EJEMPLOS
+    cursor-init ~/proyectos/mi-app
+        Crea proyecto con Ruby + Python + JavaScript
+
+    cursor-init ~/proyectos/mi-rails-app --rails
+        Crea proyecto con Rails
+
+    cursor-init . --mcp-github --mcp-postgres
+        Inicializa directorio actual con MCPs
+
+    cursor-init ~/proyectos/full --rails --mcp-github --mcp-postgres
+        Todas las opciones
+
+QUÉ CREA
+    .cursor/rules/      Reglas de estilo y documentación por lenguaje
+    .cursor/commands/   Comandos reutilizables (/document, /review)
+    .cursor/mcp.json    Configuración MCP (si se solicita)
+    .cursorignore       Archivos a ignorar en el indexado
+
+MÁS INFORMACIÓN
+    https://github.com/tu-usuario/cursor-init
+EOF
+    exit 0
+}
+
+# Copia reglas de un lenguaje
+# $1 = nombre del lenguaje
+copy_language() {
+    local lang="$1"
+    local lang_dir="$TEMPLATES_DIR/$lang"
+    
+    if [[ ! -d "$lang_dir" ]]; then
+        warn "No existe template para: $lang"
+        return
+    fi
+    
+    # Copiar reglas (con prefijo del lenguaje)
+    if [[ -d "$lang_dir/rules" ]]; then
+        for rule_file in "$lang_dir/rules"/*.mdc; do
+            if [[ -f "$rule_file" ]]; then
+                local filename=$(basename "$rule_file")
+                local dest_name="${lang}-${filename}"
+                cp "$rule_file" "$TARGET_DIR/.cursor/rules/$dest_name"
+                ok "Regla: $dest_name"
+            fi
+        done
+    fi
+    
+    # Añadir ignores extra
+    if [[ -f "$lang_dir/cursorignore" ]]; then
+        echo "" >> "$TARGET_DIR/.cursorignore"
+        echo "# === ${lang^} ===" >> "$TARGET_DIR/.cursorignore"
+        cat "$lang_dir/cursorignore" >> "$TARGET_DIR/.cursorignore"
+    fi
+}
+
+# Copia comandos
+copy_commands() {
+    if [[ -d "$TEMPLATES_DIR/commands" ]]; then
+        for cmd_file in "$TEMPLATES_DIR/commands"/*.md; do
+            if [[ -f "$cmd_file" ]]; then
+                cp "$cmd_file" "$TARGET_DIR/.cursor/commands/"
+                ok "Comando: $(basename "$cmd_file" .md)"
+            fi
+        done
+    fi
+}
+
+# Configura MCP
+# $1 = nombre del MCP (github, postgres)
+setup_mcp() {
+    local mcp_name="$1"
+    local mcp_template="$TEMPLATES_DIR/mcp/${mcp_name}.json"
+    local mcp_target="$TARGET_DIR/.cursor/mcp.json"
+    
+    if [[ ! -f "$mcp_template" ]]; then
+        warn "No existe template MCP: $mcp_name"
+        return
+    fi
+    
+    if [[ ! -f "$mcp_target" ]]; then
+        # Crear archivo base
+        echo '{"mcpServers":{}}' > "$mcp_target"
+    fi
+    
+    # Merge JSON (con jq si está disponible, sino sobrescribe)
+    if command -v jq &> /dev/null; then
+        local temp_file=$(mktemp)
+        jq -s '.[0].mcpServers * .[1].mcpServers | {mcpServers: .}' \
+            "$mcp_target" "$mcp_template" > "$temp_file"
+        mv "$temp_file" "$mcp_target"
+    else
+        # Sin jq: copiar template (pierde MCPs previos)
+        cp "$mcp_template" "$mcp_target"
+        warn "Instala 'jq' para combinar múltiples MCPs"
+    fi
+    
+    ok "MCP: $mcp_name"
+}
+
+# ============================================================================
+# PARSEO DE ARGUMENTOS
+# ============================================================================
+
+TARGET_DIR=""
+FLAG_RAILS=false
+FLAG_MCP_GITHUB=false
+FLAG_MCP_POSTGRES=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --help|-h)
+            show_help
+            ;;
+        --rails)
+            FLAG_RAILS=true
+            shift
+            ;;
+        --mcp-github)
+            FLAG_MCP_GITHUB=true
+            shift
+            ;;
+        --mcp-postgres)
+            FLAG_MCP_POSTGRES=true
+            shift
+            ;;
+        -*)
+            error "Opción desconocida: $1
+
+Usa 'cursor-init --help' para ver opciones."
+            ;;
+        *)
+            if [[ -z "$TARGET_DIR" ]]; then
+                TARGET_DIR="$1"
+            else
+                error "Solo se permite un directorio.
+
+Uso: cursor-init <directorio> [opciones]"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Validar que se proporcionó directorio
+if [[ -z "$TARGET_DIR" ]]; then
+    error "Falta el directorio.
+
+Uso: cursor-init <directorio> [opciones]
+
+Ejemplos:
+  cursor-init ~/proyectos/mi-app
+  cursor-init .
+  cursor-init ~/proyectos/mi-app --rails
+
+Usa 'cursor-init --help' para más información."
+fi
+
+# Verificar que existen los templates
+if [[ ! -d "$TEMPLATES_DIR" ]]; then
+    error "No se encuentra el directorio de templates: $TEMPLATES_DIR
+
+Asegúrate de que cursor-init está correctamente instalado."
+fi
+
+# ============================================================================
+# EJECUCIÓN
+# ============================================================================
+
+echo ""
+echo -e "${BOLD}cursor-init${NC}"
+echo ""
+
+# Resolver ruta absoluta
+if [[ "$TARGET_DIR" == "." ]]; then
+    TARGET_DIR="$(pwd)"
+else
+    # Expandir ~ y convertir a absoluta
+    TARGET_DIR="${TARGET_DIR/#\~/$HOME}"
+    TARGET_DIR="$(mkdir -p "$TARGET_DIR" && cd "$TARGET_DIR" && pwd)"
+fi
+
+# Verificar que no es home o raíz
+if [[ "$TARGET_DIR" == "$HOME" || "$TARGET_DIR" == "/" ]]; then
+    error "No puedes inicializar en tu home o raíz."
+fi
+
+info "Directorio: $TARGET_DIR"
+echo ""
+
+# Crear estructura
+mkdir -p "$TARGET_DIR/.cursor/rules"
+mkdir -p "$TARGET_DIR/.cursor/commands"
+
+# Copiar cursorignore base
+if [[ -f "$TEMPLATES_DIR/base/cursorignore" ]]; then
+    cp "$TEMPLATES_DIR/base/cursorignore" "$TARGET_DIR/.cursorignore"
+    ok ".cursorignore"
+fi
+
+# Lenguajes base
+info "Lenguajes..."
+copy_language "ruby"
+copy_language "python"
+copy_language "javascript"
+
+# Rails (opcional)
+if [[ "$FLAG_RAILS" == true ]]; then
+    echo ""
+    info "Rails..."
+    copy_language "rails"
+fi
+
+# Comandos
+echo ""
+info "Comandos..."
+copy_commands
+
+# MCP (opcional)
+if [[ "$FLAG_MCP_GITHUB" == true || "$FLAG_MCP_POSTGRES" == true ]]; then
+    echo ""
+    info "MCP..."
+    [[ "$FLAG_MCP_GITHUB" == true ]] && setup_mcp "github"
+    [[ "$FLAG_MCP_POSTGRES" == true ]] && setup_mcp "postgres"
+fi
+
+# Resumen
+echo ""
+echo -e "${GREEN}${BOLD}Proyecto inicializado${NC}"
+echo ""
+echo "Estructura creada:"
+echo "  $TARGET_DIR/"
+echo "  ├── .cursor/"
+echo "  │   ├── rules/      ← Reglas de estilo y documentación"
+echo "  │   └── commands/   ← Comandos (/document, /review)"
+echo "  └── .cursorignore   ← Archivos ignorados en indexado"
+if [[ "$FLAG_MCP_GITHUB" == true || "$FLAG_MCP_POSTGRES" == true ]]; then
+    echo "      └── .cursor/mcp.json ← Configuración MCP (¡editar!)"
+fi
+echo ""
+echo -e "${YELLOW}Siguiente paso:${NC}"
+echo "  1. cd $TARGET_DIR"
+echo "  2. Abre en Cursor: cursor . (o desde el menú)"
+echo "  3. Indexing & Docs > Compute Index"
+if [[ "$FLAG_MCP_GITHUB" == true || "$FLAG_MCP_POSTGRES" == true ]]; then
+    echo "  4. Edita .cursor/mcp.json con tus credenciales"
+fi
+echo ""

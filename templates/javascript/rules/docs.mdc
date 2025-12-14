@@ -1,0 +1,61 @@
+---
+description: Documentación JavaScript/TypeScript (JSDoc)
+globs: ["*.js", "*.jsx", "*.ts", "*.tsx"]
+---
+
+# Documentación JSDoc
+
+## Formato
+
+```javascript
+/**
+ * Crea un nuevo usuario.
+ *
+ * @param {string} name - Nombre del usuario
+ * @param {Object} [options] - Opciones
+ * @param {boolean} [options.active=true] - Si está activo
+ * @returns {Promise<User>} El usuario creado
+ * @throws {ValidationError} Si email inválido
+ *
+ * @example
+ * const user = await createUser('Alice');
+ */
+async function createUser(name, options = {}) {
+}
+```
+
+## Tags principales
+
+| Tag | Uso |
+|-----|-----|
+| `@param {Type} name` | Parámetro |
+| `@param {Type} [name]` | Opcional |
+| `@param {Type} [name=val]` | Con default |
+| `@returns {Type}` | Retorno |
+| `@throws {Type}` | Excepción |
+| `@example` | Ejemplo |
+| `@deprecated` | Obsoleto |
+
+## Tipos
+
+```javascript
+/** @param {string[]} names */
+/** @param {Array<User>} users */
+/** @param {{name: string}} person */
+/** @param {string|number} id */
+/** @param {?string} nullable */
+```
+
+## TypeScript
+
+En TS los tipos ya están en el código. Usa JSDoc para descripciones:
+
+```typescript
+/**
+ * Crea un nuevo usuario.
+ * @example
+ * const user = await createUser('Alice', 'alice@example.com');
+ */
+async function createUser(name: string, email: string): Promise<User> {
+}
+```

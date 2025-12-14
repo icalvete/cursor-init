@@ -1,0 +1,35 @@
+---
+description: Convenciones de estilo Ruby
+globs: ["*.rb", "*.rake", "Gemfile", "Rakefile", "*.gemspec"]
+---
+
+# Estilo Ruby
+
+## Nombrado
+
+- Clases y módulos: `PascalCase`
+- Métodos y variables: `snake_case`
+- Constantes: `SCREAMING_SNAKE_CASE`
+- Predicados: terminan en `?` (`empty?`, `valid?`)
+- Métodos destructivos: terminan en `!` (`save!`, `delete!`)
+
+## Idioms
+
+- `each`, `map`, `select` en lugar de `for`
+- `||=` para memoización
+- `&:method` para bloques simples: `names.map(&:upcase)`
+- `%w[]` para arrays de strings
+- Guard clauses: `return unless valid?`
+- `freeze` en constantes
+
+## Buenas prácticas
+
+- Métodos cortos (< 15 líneas)
+- `rescue StandardError`, nunca `rescue Exception`
+- Usa `private` y `protected`
+- Keyword arguments para muchos parámetros
+
+## Formato
+
+- Indentación: 2 espacios
+- Máximo 100 caracteres por línea

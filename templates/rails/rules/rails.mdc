@@ -1,0 +1,61 @@
+---
+description: Convenciones Rails
+globs: ["*.rb", "*.erb", "*.haml"]
+---
+
+# Convenciones Rails
+
+## MVC
+
+### Controladores (delgados)
+- Solo request/response
+- Máximo 5-7 líneas por acción
+- Delegan a modelos o servicios
+- `before_action` para código compartido
+
+### Modelos (gordos)
+- Lógica de negocio
+- Validaciones
+- Scopes para queries
+- Concerns para comportamiento compartido
+
+### Vistas
+- Sin queries
+- Helpers para lógica de presentación
+- Partials para código repetido
+
+## Seguridad
+
+```ruby
+# Strong Parameters (siempre)
+def user_params
+  params.require(:user).permit(:name, :email)
+end
+
+# Evitar SQL injection
+User.where(email: params[:email])        # Bien
+User.where("email = '#{params[:email]}'") # MAL
+```
+
+## Rendimiento
+
+```ruby
+# N+1 - usar includes
+@posts = Post.includes(:author)
+
+# Grandes volúmenes - usar find_each
+User.find_each { |u| process(u) }
+
+# Background jobs para tareas lentas
+UserMailer.welcome(@user).deliver_later
+```
+
+## Estructura recomendada
+
+```
+app/
+├── services/     # Service objects
+├── presenters/   # Presenters
+├── queries/      # Query objects
+└── jobs/         # Background jobs
+```

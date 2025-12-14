@@ -1,0 +1,55 @@
+---
+description: Documentación Python (Google-style docstrings)
+globs: ["*.py"]
+---
+
+# Documentación Google-style
+
+## Formato
+
+```python
+def create_user(name: str, email: str, active: bool = True) -> User:
+    """Crea un nuevo usuario.
+
+    Descripción larga si es necesario.
+
+    Args:
+        name: Nombre completo.
+        email: Correo electrónico.
+        active: Si está activo. Por defecto True.
+
+    Returns:
+        El usuario creado.
+
+    Raises:
+        ValidationError: Si email inválido.
+
+    Example:
+        >>> user = create_user("Alice", "alice@example.com")
+        >>> user.name
+        'Alice'
+    """
+```
+
+## Secciones
+
+| Sección | Contenido |
+|---------|-----------|
+| Primera línea | Descripción breve (imperativo) |
+| Args | Parámetros |
+| Returns | Valor de retorno |
+| Yields | Para generadores |
+| Raises | Excepciones |
+| Example | Ejemplo de uso |
+| Note | Notas |
+
+## Clases
+
+```python
+class UserManager:
+    """Gestiona usuarios.
+
+    Attributes:
+        db: Conexión a base de datos.
+    """
+```

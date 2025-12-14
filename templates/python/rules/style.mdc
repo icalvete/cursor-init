@@ -1,0 +1,36 @@
+---
+description: Convenciones de estilo Python (PEP8)
+globs: ["*.py"]
+---
+
+# Estilo Python
+
+## Nombrado
+
+- Módulos: `snake_case`
+- Clases: `PascalCase`
+- Funciones y variables: `snake_case`
+- Constantes: `SCREAMING_SNAKE_CASE`
+- Privados: `_prefijo`
+
+## Idioms
+
+- List comprehensions: `[x*2 for x in items]`
+- Context managers: `with open(f) as file:`
+- F-strings: `f"Hello, {name}"`
+- Unpacking: `a, b = b, a`
+- Type hints en funciones públicas
+
+## Buenas prácticas
+
+- `is` para `None`, `True`, `False`
+- `not items` en lugar de `len(items) == 0`
+- `except Exception:`, nunca `except:`
+- `pathlib.Path` sobre `os.path`
+- Dataclasses para DTOs
+
+## Formato (PEP8)
+
+- Indentación: 4 espacios
+- Máximo 99 caracteres por línea
+- 2 líneas entre funciones top-level

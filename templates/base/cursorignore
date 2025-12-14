@@ -1,0 +1,45 @@
+# =============================================================================
+# CURSORIGNORE - Archivos ignorados en el indexado de Cursor
+# =============================================================================
+
+# === Control de versiones ===
+.git/
+.svn/
+.hg/
+
+# === IDEs y editores ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# === Sistema operativo ===
+.DS_Store
+Thumbs.db
+
+# === Logs ===
+*.log
+logs/
+
+# === Temporales ===
+*.tmp
+*.temp
+tmp/
+temp/
+
+# === Datos sensibles ===
+.env
+.env.*
+*.pem
+*.key
+*.p12
+secrets/
+credentials/
+
+# === Datos grandes ===
+*.sql
+*.sqlite
+*.db
+*.csv
+data/

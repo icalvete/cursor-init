@@ -1,0 +1,49 @@
+---
+description: Documentación Ruby con YARD
+globs: ["*.rb"]
+---
+
+# Documentación YARD
+
+## Formato
+
+```ruby
+# Descripción breve.
+#
+# Descripción larga si es necesario.
+#
+# @param name [String] descripción
+# @param options [Hash] opciones
+# @option options [Boolean] :force forzar operación
+#
+# @return [User] el usuario creado
+# @return [nil] si falla
+#
+# @raise [ValidationError] si datos inválidos
+#
+# @example
+#   user = create_user("Alice")
+#   user.name #=> "Alice"
+def create_user(name, options = {})
+end
+```
+
+## Tags principales
+
+| Tag | Uso |
+|-----|-----|
+| `@param name [Type]` | Parámetro |
+| `@option hash [Type] :key` | Opción en hash |
+| `@return [Type]` | Retorno |
+| `@raise [Exception]` | Excepción |
+| `@example` | Ejemplo |
+| `@see` | Referencia |
+| `@deprecated` | Obsoleto |
+
+## Tipos
+
+```ruby
+# @param ids [Array<Integer>]
+# @param users [Hash{Symbol => User}]
+# @param name [String, nil]
+```

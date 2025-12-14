@@ -1,0 +1,605 @@
+#!/bin/bash
+#
+# cursor-config
+# =============
+# Gestiona la configuración global de Cursor IDE.
+#
+# Uso:
+#   cursor-config setup              Aplica configuración recomendada
+#   cursor-config backup <dir>       Backup de configuración actual
+#   cursor-config restore <dir>      Restaura desde backup
+#   cursor-config show               Muestra configuración actual
+#   cursor-config --help             Muestra ayuda
+#
+# Ejemplos:
+#   cursor-config setup
+#   cursor-config backup ~/cursor-backup
+#   cursor-config restore ~/cursor-backup
+#
+
+set -e
+
+# ============================================================================
+# CONFIGURACIÓN
+# ============================================================================
+
+# Directorio de configuración de Cursor (Linux)
+CURSOR_CONFIG_DIR="${CURSOR_CONFIG_DIR:-$HOME/.config/Cursor}"
+CURSOR_USER_DIR="$CURSOR_CONFIG_DIR/User"
+CURSOR_SETTINGS="$CURSOR_USER_DIR/settings.json"
+CURSOR_KEYBINDINGS="$CURSOR_USER_DIR/keybindings.json"
+CURSOR_GLOBAL_DIR="$HOME/.cursor"
+CURSOR_MCP_GLOBAL="$CURSOR_GLOBAL_DIR/mcp.json"
+
+# Colores
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# ============================================================================
+# FUNCIONES AUXILIARES
+# ============================================================================
+
+ok() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+info() {
+    echo -e "${BLUE}→${NC} $1"
+}
+
+warn() {
+    echo -e "${YELLOW}!${NC} $1"
+}
+
+error() {
+    echo -e "${RED}✗${NC} $1" >&2
+    exit 1
+}
+
+show_help() {
+    cat << 'EOF'
+cursor-config - Gestiona la configuración global de Cursor IDE
+
+USO
+    cursor-config <comando> [argumentos]
+
+COMANDOS
+    setup               Aplica configuración recomendada
+    backup <dir>        Guarda backup de configuración actual
+    restore <dir>       Restaura configuración desde backup
+    show                Muestra configuración actual
+    extensions list     Lista extensiones instaladas
+    extensions backup <file>    Guarda lista de extensiones
+    extensions restore <file>   Instala extensiones desde lista
+
+OPCIONES
+    --help, -h          Muestra esta ayuda
+
+EJEMPLOS
+    cursor-config setup
+        Aplica configuración segura y productiva
+
+    cursor-config backup ~/cursor-backup
+        Guarda settings, keybindings, mcp.json y lista de extensiones
+
+    cursor-config restore ~/cursor-backup
+        Restaura configuración (pide confirmación)
+
+    cursor-config extensions list
+        Muestra extensiones instaladas
+
+CONFIGURACIÓN RECOMENDADA (setup)
+    - Data Sharing: Desactivado
+    - Index New Folders: OFF (indexar manualmente)
+    - Auto-Run Mode: Ask Every Time (seguro)
+    - Web Search Tool: ON
+    - File Deletion Protection: ON
+    - Dotfile Protection: ON
+    - Default Mode: Agent
+
+ARCHIVOS
+    ~/.config/Cursor/User/settings.json     Configuración principal
+    ~/.config/Cursor/User/keybindings.json  Atajos de teclado
+    ~/.cursor/mcp.json                      MCP global
+
+MÁS INFORMACIÓN
+    https://github.com/tu-usuario/cursor-init
+EOF
+    exit 0
+}
+
+# Verifica que jq está instalado (necesario para manipular JSON)
+check_jq() {
+    if ! command -v jq &> /dev/null; then
+        error "Este comando requiere 'jq' para manipular JSON.
+
+Instálalo con:
+  Ubuntu/Debian: sudo apt install jq
+  Mac: brew install jq"
+    fi
+}
+
+# Verifica que existe el directorio de Cursor
+check_cursor_installed() {
+    if [[ ! -d "$CURSOR_CONFIG_DIR" ]]; then
+        error "No se encuentra el directorio de Cursor: $CURSOR_CONFIG_DIR
+
+¿Está Cursor instalado? Ábrelo al menos una vez para que cree la configuración."
+    fi
+}
+
+# Lee un valor del settings.json
+get_setting() {
+    local key="$1"
+    if [[ -f "$CURSOR_SETTINGS" ]]; then
+        local value=$(jq "$key" "$CURSOR_SETTINGS" 2>/dev/null)
+        if [[ "$value" == "null" || -z "$value" ]]; then
+            echo "no definido"
+        else
+            echo "$value" | tr -d '"'
+        fi
+    else
+        echo "no definido"
+    fi
+}
+
+# Escribe/actualiza un valor en settings.json
+set_setting() {
+    local key="$1"
+    local value="$2"
+    local temp_file=$(mktemp)
+    
+    # Crear archivo si no existe
+    if [[ ! -f "$CURSOR_SETTINGS" ]]; then
+        mkdir -p "$CURSOR_USER_DIR"
+        echo '{}' > "$CURSOR_SETTINGS"
+    fi
+    
+    # Actualizar valor
+    jq "$key = $value" "$CURSOR_SETTINGS" > "$temp_file"
+    mv "$temp_file" "$CURSOR_SETTINGS"
+}
+
+# ============================================================================
+# COMANDO: setup
+# ============================================================================
+
+cmd_setup() {
+    echo ""
+    echo -e "${BOLD}cursor-config setup${NC}"
+    echo ""
+    
+    check_jq
+    check_cursor_installed
+    
+    warn "Esto modificará tu configuración de Cursor."
+    echo ""
+    echo "Configuración que se aplicará:"
+    echo "  - Data Sharing: Desactivado"
+    echo "  - Index New Folders: OFF"
+    echo "  - Auto-Run Mode: Ask Every Time"
+    echo "  - Web Search Tool: ON"
+    echo "  - File Deletion Protection: ON"
+    echo "  - Dotfile Protection: ON"
+    echo "  - External-File Protection: ON"
+    echo "  - Default Mode: Agent"
+    echo ""
+    
+    read -p "¿Continuar? [y/N] " -n 1 -r
+    echo ""
+    
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Cancelado."
+        exit 0
+    fi
+    
+    echo ""
+    info "Aplicando configuración..."
+    
+    # Crear backup antes de modificar
+    local backup_file="$CURSOR_USER_DIR/settings.json.backup.$(date +%Y%m%d_%H%M%S)"
+    if [[ -f "$CURSOR_SETTINGS" ]]; then
+        cp "$CURSOR_SETTINGS" "$backup_file"
+        ok "Backup creado: $backup_file"
+    fi
+    
+    # Crear settings.json si no existe
+    if [[ ! -f "$CURSOR_SETTINGS" ]]; then
+        mkdir -p "$CURSOR_USER_DIR"
+        echo '{}' > "$CURSOR_SETTINGS"
+    fi
+    
+    # Aplicar configuración recomendada
+    
+    # Privacy: Data Sharing desactivado
+    set_setting '."cursor.telemetry.enableTelemetry"' 'false'
+    set_setting '."cursor.telemetry.enableCrashReporter"' 'false'
+    ok "Data Sharing: Desactivado"
+    
+    # Indexing: No indexar nuevas carpetas automáticamente
+    set_setting '."cursor.indexing.indexNewFolders"' 'false'
+    ok "Index New Folders: OFF"
+    
+    # Agent: Auto-Run Mode = Ask Every Time
+    set_setting '."cursor.agent.autoRunMode"' '"askEveryTime"'
+    ok "Auto-Run Mode: Ask Every Time"
+    
+    # Agent: Web Search Tool habilitado
+    set_setting '."cursor.agent.webSearchTool"' 'true'
+    ok "Web Search Tool: ON"
+    
+    # Agent: Protecciones activadas
+    set_setting '."cursor.agent.fileDeletionProtection"' 'true'
+    ok "File Deletion Protection: ON"
+    
+    set_setting '."cursor.agent.dotfileProtection"' 'true'
+    ok "Dotfile Protection: ON"
+    
+    set_setting '."cursor.agent.externalFileProtection"' 'true'
+    ok "External-File Protection: ON"
+    
+    # Agent: Default Mode = Agent
+    set_setting '."cursor.agent.defaultMode"' '"agent"'
+    ok "Default Mode: Agent"
+    
+    # Crear directorio ~/.cursor si no existe
+    mkdir -p "$CURSOR_GLOBAL_DIR"
+    
+    echo ""
+    echo -e "${GREEN}${BOLD}Configuración aplicada${NC}"
+    echo ""
+    echo -e "${YELLOW}Nota:${NC} Reinicia Cursor para que los cambios tengan efecto."
+    echo ""
+}
+
+# ============================================================================
+# COMANDO: backup
+# ============================================================================
+
+cmd_backup() {
+    local backup_dir="$1"
+    
+    if [[ -z "$backup_dir" ]]; then
+        error "Falta el directorio de destino.
+
+Uso: cursor-config backup <directorio>
+
+Ejemplo: cursor-config backup ~/cursor-backup"
+    fi
+    
+    echo ""
+    echo -e "${BOLD}cursor-config backup${NC}"
+    echo ""
+    
+    check_cursor_installed
+    
+    # Crear directorio de backup
+    mkdir -p "$backup_dir"
+    
+    info "Guardando backup en: $backup_dir"
+    echo ""
+    
+    # Copiar settings.json
+    if [[ -f "$CURSOR_SETTINGS" ]]; then
+        cp "$CURSOR_SETTINGS" "$backup_dir/settings.json"
+        ok "settings.json"
+    else
+        warn "settings.json no existe"
+    fi
+    
+    # Copiar keybindings.json
+    if [[ -f "$CURSOR_KEYBINDINGS" ]]; then
+        cp "$CURSOR_KEYBINDINGS" "$backup_dir/keybindings.json"
+        ok "keybindings.json"
+    else
+        warn "keybindings.json no existe"
+    fi
+    
+    # Copiar snippets
+    if [[ -d "$CURSOR_USER_DIR/snippets" ]]; then
+        cp -r "$CURSOR_USER_DIR/snippets" "$backup_dir/"
+        ok "snippets/"
+    fi
+    
+    # Copiar mcp.json global (sin tokens sensibles - advertir)
+    if [[ -f "$CURSOR_MCP_GLOBAL" ]]; then
+        cp "$CURSOR_MCP_GLOBAL" "$backup_dir/mcp.json"
+        ok "mcp.json"
+        warn "mcp.json puede contener tokens. Revisa antes de compartir."
+    fi
+    
+    # Guardar lista de extensiones
+    if command -v cursor &> /dev/null; then
+        cursor --list-extensions > "$backup_dir/extensions.txt" 2>/dev/null || true
+        if [[ -s "$backup_dir/extensions.txt" ]]; then
+            ok "extensions.txt ($(wc -l < "$backup_dir/extensions.txt") extensiones)"
+        fi
+    else
+        warn "No se pudo listar extensiones (comando 'cursor' no disponible)"
+    fi
+    
+    # Crear info del backup
+    cat > "$backup_dir/backup-info.txt" << EOF
+Cursor Config Backup
+====================
+Fecha: $(date)
+Host: $(hostname)
+Usuario: $USER
+Cursor Config Dir: $CURSOR_CONFIG_DIR
+
+Contenido:
+- settings.json: Configuración principal
+- keybindings.json: Atajos de teclado
+- snippets/: Snippets personalizados
+- mcp.json: Configuración MCP global
+- extensions.txt: Lista de extensiones
+
+Para restaurar:
+  cursor-config restore $backup_dir
+EOF
+    
+    echo ""
+    echo -e "${GREEN}${BOLD}Backup completado${NC}"
+    echo ""
+    echo "Archivos guardados en: $backup_dir"
+    echo ""
+}
+
+# ============================================================================
+# COMANDO: restore
+# ============================================================================
+
+cmd_restore() {
+    local backup_dir="$1"
+    
+    if [[ -z "$backup_dir" ]]; then
+        error "Falta el directorio de backup.
+
+Uso: cursor-config restore <directorio>
+
+Ejemplo: cursor-config restore ~/cursor-backup"
+    fi
+    
+    if [[ ! -d "$backup_dir" ]]; then
+        error "No existe el directorio: $backup_dir"
+    fi
+    
+    echo ""
+    echo -e "${BOLD}cursor-config restore${NC}"
+    echo ""
+    
+    check_cursor_installed
+    
+    warn "Esto sobrescribirá tu configuración actual de Cursor."
+    echo ""
+    echo "Se restaurará desde: $backup_dir"
+    echo ""
+    
+    # Mostrar qué se va a restaurar
+    echo "Archivos a restaurar:"
+    [[ -f "$backup_dir/settings.json" ]] && echo "  - settings.json"
+    [[ -f "$backup_dir/keybindings.json" ]] && echo "  - keybindings.json"
+    [[ -d "$backup_dir/snippets" ]] && echo "  - snippets/"
+    [[ -f "$backup_dir/mcp.json" ]] && echo "  - mcp.json"
+    [[ -f "$backup_dir/extensions.txt" ]] && echo "  - extensions.txt ($(wc -l < "$backup_dir/extensions.txt") extensiones)"
+    echo ""
+    
+    read -p "¿Continuar? [y/N] " -n 1 -r
+    echo ""
+    
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Cancelado."
+        exit 0
+    fi
+    
+    echo ""
+    info "Restaurando..."
+    
+    # Crear directorios si no existen
+    mkdir -p "$CURSOR_USER_DIR"
+    mkdir -p "$CURSOR_GLOBAL_DIR"
+    
+    # Restaurar settings.json
+    if [[ -f "$backup_dir/settings.json" ]]; then
+        cp "$backup_dir/settings.json" "$CURSOR_SETTINGS"
+        ok "settings.json"
+    fi
+    
+    # Restaurar keybindings.json
+    if [[ -f "$backup_dir/keybindings.json" ]]; then
+        cp "$backup_dir/keybindings.json" "$CURSOR_KEYBINDINGS"
+        ok "keybindings.json"
+    fi
+    
+    # Restaurar snippets
+    if [[ -d "$backup_dir/snippets" ]]; then
+        cp -r "$backup_dir/snippets" "$CURSOR_USER_DIR/"
+        ok "snippets/"
+    fi
+    
+    # Restaurar mcp.json
+    if [[ -f "$backup_dir/mcp.json" ]]; then
+        cp "$backup_dir/mcp.json" "$CURSOR_MCP_GLOBAL"
+        ok "mcp.json"
+        warn "Recuerda actualizar los tokens en mcp.json si es necesario"
+    fi
+    
+    # Preguntar si restaurar extensiones
+    if [[ -f "$backup_dir/extensions.txt" ]]; then
+        echo ""
+        read -p "¿Instalar extensiones desde backup? [y/N] " -n 1 -r
+        echo ""
+        
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            info "Instalando extensiones..."
+            while IFS= read -r extension; do
+                if [[ -n "$extension" ]]; then
+                    cursor --install-extension "$extension" 2>/dev/null && ok "$extension" || warn "Fallo: $extension"
+                fi
+            done < "$backup_dir/extensions.txt"
+        fi
+    fi
+    
+    echo ""
+    echo -e "${GREEN}${BOLD}Restauración completada${NC}"
+    echo ""
+    echo -e "${YELLOW}Nota:${NC} Reinicia Cursor para que los cambios tengan efecto."
+    echo ""
+}
+
+# ============================================================================
+# COMANDO: show
+# ============================================================================
+
+cmd_show() {
+    echo ""
+    echo -e "${BOLD}cursor-config show${NC}"
+    echo ""
+    
+    check_jq
+    
+    echo -e "${BLUE}Directorios:${NC}"
+    echo "  Config: $CURSOR_CONFIG_DIR"
+    echo "  Global: $CURSOR_GLOBAL_DIR"
+    echo ""
+    
+    if [[ -f "$CURSOR_SETTINGS" ]]; then
+        echo -e "${BLUE}Configuración actual (settings.json):${NC}"
+        echo ""
+        
+        # Mostrar settings relevantes
+        echo "  Privacy:"
+        echo "    Telemetry: $(get_setting '."cursor.telemetry.enableTelemetry"')"
+        echo ""
+        
+        echo "  Indexing:"
+        echo "    Index New Folders: $(get_setting '."cursor.indexing.indexNewFolders"')"
+        echo ""
+        
+        echo "  Agent:"
+        echo "    Default Mode: $(get_setting '."cursor.agent.defaultMode"')"
+        echo "    Auto-Run Mode: $(get_setting '."cursor.agent.autoRunMode"')"
+        echo "    Web Search Tool: $(get_setting '."cursor.agent.webSearchTool"')"
+        echo "    File Deletion Protection: $(get_setting '."cursor.agent.fileDeletionProtection"')"
+        echo "    Dotfile Protection: $(get_setting '."cursor.agent.dotfileProtection"')"
+        echo "    External-File Protection: $(get_setting '."cursor.agent.externalFileProtection"')"
+        echo ""
+    else
+        warn "No existe settings.json"
+    fi
+    
+    if [[ -f "$CURSOR_MCP_GLOBAL" ]]; then
+        echo -e "${BLUE}MCP Global (~/.cursor/mcp.json):${NC}"
+        echo ""
+        # Mostrar MCPs configurados (sin mostrar tokens)
+        jq -r '.mcpServers | keys[]' "$CURSOR_MCP_GLOBAL" 2>/dev/null | while read -r mcp; do
+            echo "    - $mcp"
+        done
+        echo ""
+    fi
+}
+
+# ============================================================================
+# COMANDO: extensions
+# ============================================================================
+
+cmd_extensions() {
+    local subcmd="$1"
+    local arg="$2"
+    
+    case "$subcmd" in
+        list)
+            echo ""
+            echo -e "${BOLD}Extensiones instaladas:${NC}"
+            echo ""
+            if command -v cursor &> /dev/null; then
+                cursor --list-extensions 2>/dev/null || warn "No se pudo listar extensiones"
+            else
+                error "Comando 'cursor' no disponible en PATH"
+            fi
+            echo ""
+            ;;
+        backup)
+            if [[ -z "$arg" ]]; then
+                error "Falta el archivo de destino.
+
+Uso: cursor-config extensions backup <archivo>"
+            fi
+            if command -v cursor &> /dev/null; then
+                cursor --list-extensions > "$arg" 2>/dev/null
+                ok "Extensiones guardadas en: $arg"
+            else
+                error "Comando 'cursor' no disponible en PATH"
+            fi
+            ;;
+        restore)
+            if [[ -z "$arg" ]]; then
+                error "Falta el archivo con la lista.
+
+Uso: cursor-config extensions restore <archivo>"
+            fi
+            if [[ ! -f "$arg" ]]; then
+                error "No existe el archivo: $arg"
+            fi
+            if ! command -v cursor &> /dev/null; then
+                error "Comando 'cursor' no disponible en PATH"
+            fi
+            
+            echo ""
+            info "Instalando extensiones desde: $arg"
+            echo ""
+            while IFS= read -r extension; do
+                if [[ -n "$extension" ]]; then
+                    cursor --install-extension "$extension" 2>/dev/null && ok "$extension" || warn "Fallo: $extension"
+                fi
+            done < "$arg"
+            echo ""
+            ;;
+        *)
+            error "Subcomando desconocido: $subcmd
+
+Uso:
+  cursor-config extensions list
+  cursor-config extensions backup <archivo>
+  cursor-config extensions restore <archivo>"
+            ;;
+    esac
+}
+
+# ============================================================================
+# MAIN
+# ============================================================================
+
+if [[ $# -eq 0 ]]; then
+    show_help
+fi
+
+case "$1" in
+    setup)
+        cmd_setup
+        ;;
+    backup)
+        cmd_backup "$2"
+        ;;
+    restore)
+        cmd_restore "$2"
+        ;;
+    show)
+        cmd_show
+        ;;
+    extensions)
+        cmd_extensions "$2" "$3"
+        ;;
+    --help|-h)
+        show_help
+        ;;
+    *)
+        error "Comando desconocido: $1
+
+Usa 'cursor-config --help' para ver comandos disponibles."
+        ;;
+esac
