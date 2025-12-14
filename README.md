@@ -6,6 +6,8 @@
 
 Herramientas para configurar y usar [Cursor IDE](https://cursor.com) de forma productiva y segura.
 
+> **Importante:** Si es tu primera vez con Cursor IDE, te recomendamos leer el [Tutorial Básico](docs/tutorial-basico.md) antes de usar este proyecto. Entender los conceptos de Chat, Composer, símbolos @, Rules y Commands te ayudará a sacar el máximo provecho de `cursor-init` y `cursor-config`.
+
 ## ¿Por qué?
 
 Cursor es un IDE potente basado en VS Code con capacidades de IA integradas. Sin embargo, la configuración por defecto no siempre es la más segura o productiva:
@@ -174,6 +176,7 @@ En la carpeta [`docs/`](docs/) encontrarás tutoriales completos para aprender a
 | [Tutorial Básico](docs/tutorial-basico.md) | Introducción completa: instalación, interfaces, símbolos @ y reglas |
 | [Tutorial Avanzado](docs/tutorial-avanzado.md) | Agent Mode, MCP, Commands, CLI y workflows (TDD, refactoring) |
 | [Cheatsheet](docs/cheatsheet.md) | Referencia rápida: configuración, atajos, MCP y checklist de seguridad |
+| [POC: Ruby + Sinatra](docs/poc-ruby-sinatra.md) | Proyecto práctico que demuestra todas las características de Cursor |
 
 ### Enlaces externos
 
